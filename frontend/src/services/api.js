@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const client = axios.create({ baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api'), timeout: 12000 })
+const client = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 12000 })
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('krishiniti_token')
   if (token && token !== 'offline-demo') config.headers.Authorization = `Bearer ${token}`

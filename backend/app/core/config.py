@@ -24,12 +24,16 @@ class Settings(BaseSettings):
     disease_model_type: str = "sklearn"
     disease_image_max_mb: int = 10
     cors_origins: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:3000"
-
-    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
+    frontend_url: str = "https://krishiniti2-0.vercel.app"
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        origins = [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        if self.frontend_url and self.frontend_url not in origins:
+            origins.append(self.frontend_url)
+        return origins
+
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
 
 @lru_cache

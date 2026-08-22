@@ -32,6 +32,10 @@ for router in [auth.router, farms.router, fields.router, recommendations.router,
 def health():
     return {"status": "healthy", "demo_mode": settings.demo_mode}
 
+@app.get("/health", tags=["System"])
+def health_root():
+    return {"status": "healthy", "demo_mode": settings.demo_mode}
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError):
