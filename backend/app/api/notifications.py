@@ -11,7 +11,13 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 @router.get("")
 def notifications(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Notification).filter(Notification.user_id == user.id).order_by(Notification.created_at.desc()).all()
+    notifications_list = db.query(Notification).filter(Notification.user_id == user.id).order_by(Notification.created_at.desc()).all()
+    if not notifications_list:
+        return [
+            {"id": 1, "title": "Welcome to Krishiniti", "message": "Start by creating your first farm and field to receive personalized advisories.", "type": "general", "is_read": False},
+            {"id": 2, "title": "Setup complete", "message": "Your account is ready. Create farms and fields to get weather, crop health, and advisory notifications.", "type": "general", "is_read": False}
+        ]
+    return notifications_list
 
 
 @router.put("/{notification_id}/read")
