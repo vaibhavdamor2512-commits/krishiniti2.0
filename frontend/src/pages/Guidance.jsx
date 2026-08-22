@@ -17,8 +17,23 @@ export function DiseaseAdvisor(){
   const [mode,setMode]=useState('symptoms'); // 'symptoms' or 'image'
   const [image,setImage]=useState(null);
   const [imagePreview,setImagePreview]=useState(null);
+  const [farms,setFarms]=useState([]);
+  const [fields,setFields]=useState([]);
+  const [farmId,setFarmId]=useState(null);
+  const [fieldId,setFieldId]=useState(null);
   
   useEffect(()=>{
+    api.farms().then(farmData=>{
+      setFarms(farmData);
+      if(farmData.length>0){
+        setFarmId(farmData[0].id);
+        api.fields(farmData[0].id).then(fieldData=>{
+          setFields(fieldData);
+          if(fieldData.length>0)setFieldId(fieldData[0].id);
+        });
+      }
+    });
+    
     api.diseaseCrops().then(items=>{
       setCrops(items);
       if(items[0])setCropId(items[0].id)
@@ -37,7 +52,12 @@ export function DiseaseAdvisor(){
   
   const analyze=async()=>{
     setBusy(true);
-    setResult(await api.analyzeDisease(+cropId,selected));
+    const analysisResult=await api.analyzeDisease(+cropId,selected);
+    setResult({
+      ...analysisResult,
+      farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
+      fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
+    });
     setBusy(false)
   };
   
@@ -60,7 +80,11 @@ export function DiseaseAdvisor(){
         'growth_stage': 'unknown'
       };
       const data=await api.analyzeDiseaseImage(+cropId,image,features);
-      setResult(data);
+      setResult({
+        ...data,
+        farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
+        fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
+      });
     }catch(error){
       console.error('Image analysis failed:',error);
       setResult({
@@ -75,7 +99,9 @@ export function DiseaseAdvisor(){
           management: 'Follow standard crop management practices and consult local agricultural experts.'
         }],
         low_confidence: true,
-        disclaimer: 'This is a demo mode image analysis. For production use, implement proper ML model integration.'
+        disclaimer: 'This is a demo mode image analysis. For production use, implement proper ML model integration.',
+        farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
+        fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
       });
     }finally{
       setBusy(false)
@@ -86,6 +112,17 @@ export function DiseaseAdvisor(){
     setImage(null);
     setImagePreview(null);
     setResult(null);
+  };
+  
+  const handleFarmChange=(e)=>{
+    const selectedFarmId=+e.target.value;
+    setFarmId(selectedFarmId);
+    setFieldId(null);
+    setFields([]);
+    api.fields(selectedFarmId).then(fieldData=>{
+      setFields(fieldData);
+      if(fieldData.length>0)setFieldId(fieldData[0].id);
+    });
   };
   
   return <>
@@ -99,6 +136,21 @@ export function DiseaseAdvisor(){
         <Camera size={18}/> Image Analysis
       </button>
     </div>
+    
+    {farms.length>0 && (
+      <div className="panel farm-field-selector">
+        <label>Select Farm
+          <select value={farmId||''} onChange={handleFarmChange} disabled={farms.length===0}>
+            {farms.length===0?<option value="">No farms available</option>:farms.map(f=><option value={f.id} key={f.id}>{f.name}</option>)}
+          </select>
+        </label>
+        <label>Select Field
+          <select value={fieldId||''} onChange={e=>setFieldId(+e.target.value)} disabled={fields.length===0}>
+            {fields.length===0?<option value="">No fields available</option>:fields.map(f=><option value={f.id} key={f.id}>{f.name}</option>)}
+          </select>
+        </label>
+      </div>
+    )}
     
     {mode==='symptoms'?(
       <div className="disease-layout">
@@ -142,7 +194,19 @@ export function DiseaseAdvisor(){
       </div>
     )}
     
-    {result&&<section className="diagnosis-results"><div className="diagnosis-note"><AlertTriangle/><p><strong>{t('advisoryDisclaimer')}</strong><span>{result.message}</span></p></div>{result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}</section>}
+    {result&&<section className="diagnosis-results">
+      <div className="diagnosis-note"><AlertTriangle/><p><strong>{t('advisoryDisclaimer')}</strong><span>{result.message}</span></p></div>
+      <div className="analysis-context">
+        <p><strong>Analysis Context:</strong></p>
+        <div className="context-details">
+          <span>Farm: {result.farmName || 'Unknown Farm'}</span>
+          <span>Field: {result.fieldName || 'Unknown Field'}</span>
+          <span>Crop: {crops.find(c=>c.id===cropId)?.name || 'Unknown Crop'}</span>
+          <span>Analysis Type: {mode==='image'?'Image Analysis':'Symptom Analysis'}</span>
+        </div>
+      </div>
+      {result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}
+    </section>}
   </>
 }
 
