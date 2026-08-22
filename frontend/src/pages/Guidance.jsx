@@ -205,7 +205,29 @@ export function DiseaseAdvisor(){
           <span>Analysis Type: {mode==='image'?'Image Analysis':'Symptom Analysis'}</span>
         </div>
       </div>
-      {result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}
+      {result.matches && result.matches.length > 0 ? (
+        result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card">
+          <div className="match-score">
+            <strong>{match.match_confidence}%</strong>
+            <span>Confidence Score</span>
+          </div>
+          <div>
+            <p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p>
+            <h2>{match.possible_issue}</h2>
+            <p><strong>Analysis Result:</strong> {match.observed_symptoms && match.observed_symptoms.length > 0 ? match.observed_symptoms.join(', ') : 'Visual analysis completed'}</p>
+            <p><strong>Recommended Action:</strong> {match.recommended_action}</p>
+            <div className="management-grid">
+              <div><strong>Prevention</strong><span>{match.prevention}</span></div>
+              <div><strong>Management</strong><span>{match.management}</span></div>
+            </div>
+          </div>
+          <Badge tone="sand">{match.severity} severity</Badge>
+        </article>)
+      ) : (
+        <div className="diagnosis-card">
+          <p>No analysis results available. Please try uploading a different image or use symptom analysis.</p>
+        </div>
+      )}
     </section>}
   </>
 }
