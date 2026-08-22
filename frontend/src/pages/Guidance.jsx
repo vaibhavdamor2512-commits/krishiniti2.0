@@ -218,30 +218,36 @@ export function DiseaseAdvisor(){
       {result.matches && result.matches.length > 0 ? (
         <div className="analysis-report-container">
           <h3>📊 Disease Analysis Report</h3>
-          {result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card">
-            <div className="match-score">
-              <strong>{match.match_confidence}%</strong>
-              <span>Confidence Score</span>
+          {result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card" style={{border: '2px solid var(--green)', marginBottom: '20px'}}>
+            <div className="match-score" style={{borderRight: '2px solid var(--green)', paddingRight: '20px'}}>
+              <strong style={{fontSize: '28px', color: 'var(--green)'}}>{match.match_confidence}%</strong>
+              <span style={{fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Confidence Score</span>
             </div>
-            <div>
-              <p className="eyebrow">{index===0?'🎯 MOST LIKELY MATCH':'🔍 OTHER POSSIBLE ISSUE'}</p>
-              <h2>{match.possible_issue}</h2>
-              <div className="analysis-result-box">
-                <p><strong>🔬 Analysis Result:</strong> {match.observed_symptoms && match.observed_symptoms.length > 0 ? match.observed_symptoms.join(', ') : 'Visual analysis completed'}</p>
+            <div style={{paddingLeft: '20px'}}>
+              <p className="eyebrow" style={{fontSize: '11px', fontWeight: '800', letterSpacing: '0.13em', textTransform: 'uppercase'}}>{index===0?'🎯 MOST LIKELY MATCH':'🔍 OTHER POSSIBLE ISSUE'}</p>
+              <h2 style={{fontSize: '22px', margin: '0 0 10px', color: 'var(--ink)'}}>{match.possible_issue}</h2>
+              <div className="analysis-result-box" style={{background: '#f8f9f2', border: '1px solid var(--line)', borderRadius: '12px', padding: '16px', margin: '12px 0'}}>
+                <p style={{margin: '0', fontSize: '14px'}}><strong>🔬 Analysis Result:</strong> {match.observed_symptoms && match.observed_symptoms.length > 0 ? match.observed_symptoms.join(', ') : 'Visual analysis completed'}</p>
               </div>
-              <div className="action-box">
-                <p><strong>💡 Recommended Action:</strong> {match.recommended_action}</p>
+              <div className="action-box" style={{background: '#fff0dc', border: '1px solid #ddb878', borderRadius: '12px', padding: '16px', margin: '12px 0'}}>
+                <p style={{margin: '0', fontSize: '14px'}}><strong>💡 Recommended Action:</strong> {match.recommended_action}</p>
               </div>
-              <div className="management-grid">
-                <div><strong>🛡️ Prevention</strong><span>{match.prevention}</span></div>
-                <div><strong>🔧 Management</strong><span>{match.management}</span></div>
+              <div className="management-grid" style={{gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px'}}>
+                <div style={{background: '#f4f6f2', borderRadius: '12px', padding: '16px'}}>
+                  <strong style={{fontSize: '10px', textTransform: 'uppercase', color: 'var(--green)', display: 'block'}}>🛡️ Prevention</strong>
+                  <span style={{fontSize: '12px', color: 'var(--muted)', display: 'block', marginTop: '8px'}}>{match.prevention}</span>
+                </div>
+                <div style={{background: '#f4f6f2', borderRadius: '12px', padding: '16px'}}>
+                  <strong style={{fontSize: '10px', textTransform: 'uppercase', color: 'var(--green)', display: 'block'}}>🔧 Management</strong>
+                  <span style={{fontSize: '12px', color: 'var(--muted)', display: 'block', marginTop: '8px'}}>{match.management}</span>
+                </div>
               </div>
             </div>
-            <Badge tone="sand">{match.severity} severity</Badge>
+            <Badge tone="sand" style={{position: 'absolute', top: '20px', right: '20px'}}>{match.severity} severity</Badge>
           </article>)}
         </div>
       ) : (
-        <div className="diagnosis-card">
+        <div className="diagnosis-card" style={{border: '2px solid var(--green)', padding: '24px', textAlign: 'center'}}>
           <p>No analysis results available. Please try uploading a different image or use symptom analysis.</p>
         </div>
       )}
