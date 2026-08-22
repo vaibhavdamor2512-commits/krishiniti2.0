@@ -1,12 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { sites } from '@openai/sites-vite-plugin'
 import tailwindcss from '@tailwindcss/postcss'
-import { cloudflare } from '@cloudflare/vite-plugin'
 
 export default defineConfig(({mode})=>({
-  plugins: mode==='test' ? [react()] : [react(), sites(), cloudflare({ viteEnvironment: { name: 'server' } })],
+  plugins: mode==='test' ? [react()] : [react()],
   css: { postcss: { plugins: [tailwindcss()] } },
-  server: { port: 5173 },
+  server: { port: 5173, proxy: { '/api': { target: 'http://localhost:8000', changeOrigin: true } } },
   test: { environment: 'jsdom', setupFiles: './src/test/setup.js', clearMocks: true },
 }))
