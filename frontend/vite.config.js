@@ -4,8 +4,9 @@ import { sites } from '@openai/sites-vite-plugin'
 import tailwindcss from '@tailwindcss/postcss'
 import { cloudflare } from '@cloudflare/vite-plugin'
 
-export default defineConfig({
-  plugins: [react(), sites(), cloudflare({ viteEnvironment: { name: 'server' } })],
+export default defineConfig(({mode})=>({
+  plugins: mode==='test' ? [react()] : [react(), sites(), cloudflare({ viteEnvironment: { name: 'server' } })],
   css: { postcss: { plugins: [tailwindcss()] } },
   server: { port: 5173 },
-})
+  test: { environment: 'jsdom', setupFiles: './src/test/setup.js', clearMocks: true },
+}))

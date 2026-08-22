@@ -7,6 +7,9 @@ export default [{
     globals: {
       console: 'readonly', document: 'readonly', window: 'readonly',
       localStorage: 'readonly', Intl: 'readonly', URL: 'readonly',
+      Response: 'readonly', File: 'readonly', FormData: 'readonly', fetch: 'readonly',
+      crypto: 'readonly', TextEncoder: 'readonly', btoa: 'readonly', atob: 'readonly',
+      Event: 'readonly', Image: 'readonly',
     },
   },
   rules: {

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     market_api_key: str | None = None
     google_maps_api_key: str | None = None
     google_earth_engine_project: str | None = None
+    disease_model_path: str | None = None
+    disease_model_type: str = "sklearn"
+    disease_image_max_mb: int = 10
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")

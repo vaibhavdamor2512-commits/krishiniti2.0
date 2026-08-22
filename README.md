@@ -21,11 +21,11 @@ The frontend uses real REST calls to a FastAPI backend. Business rules, ownershi
 - Production cost, revenue, expected profit, risk penalty and risk-adjusted ranking
 - Weather and irrigation guidance with automatic demo fallback
 - NDVI current value, history, trend, configurable interpretation and responsible labels
-- Crop-specific weighted symptom matching with prevention and management guidance
+- Crop image upload/camera analysis plus crop-specific symptom matching, with prevention and management guidance
 - English, Hindi, Gujarati and Punjabi UI dictionaries
 - Advisories and read/unread notifications
 - Responsive farmer dashboard and accessible mobile navigation
-- SQLite by default, MySQL by configuration, plus Docker Compose
+- SQLite by default, MySQL by configuration, and hosted D1/R2 persistence for the Sites deployment
 
 ## Architecture
 
@@ -135,7 +135,7 @@ Mobile:   9999999999
 Password: demo123
 ```
 
-The browser also has an offline UI fallback if the API is temporarily unreachable. For the real end-to-end workflow, run both services.
+Read-only demo fallback is enabled only when `VITE_DEMO_MODE=true`. Authentication and data mutations never fabricate successful responses. For the real local end-to-end workflow, run both services.
 
 ## Environment variables
 
@@ -151,6 +151,9 @@ Backend:
 | `GOOGLE_MAPS_API_KEY` | Optional future map provider credential |
 | `GOOGLE_EARTH_ENGINE_PROJECT` | Future Earth Engine project |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins |
+| `DISEASE_MODEL_PATH` | Optional path to a compatible scikit-learn image-feature classifier |
+| `DISEASE_MODEL_TYPE` | Image model adapter type; currently `sklearn` |
+| `DISEASE_IMAGE_MAX_MB` | Maximum accepted crop image size; defaults to 10 MB |
 
 Frontend:
 
@@ -158,6 +161,13 @@ Frontend:
 |---|---|
 | `VITE_API_URL` | API base URL; defaults to `http://localhost:8000/api` |
 | `VITE_DEMO_MODE` | Documents intended demo behavior |
+
+Hosted Site runtime (optional configured image model):
+
+| Variable | Purpose |
+|---|---|
+| `DISEASE_MODEL_URL` | HTTPS endpoint for a configured crop-image classifier |
+| `DISEASE_MODEL_API_KEY` | Optional bearer credential for that classifier; store as a Site secret |
 
 Do not use the development JWT default in a shared environment. Never commit `.env` files.
 
@@ -211,6 +221,7 @@ GET    /api/ndvi/{field_id}/history
 GET    /api/diseases/crops
 GET    /api/diseases/symptoms/{crop_id}
 POST   /api/diseases/analyze
+POST   /api/diseases/analyze-image
 GET    /api/advisories/{field_id}
 GET    /api/notifications
 PUT    /api/notifications/{id}/read
@@ -249,17 +260,23 @@ The baseline yield service reports `transparent-baseline-v1`; it never pretends 
 - NDVI labels are configurable interpretation bands, not universal diagnostic thresholds.
 - A decline triggers a prompt to inspect irrigation, weather, nutrients and visible symptoms.
 - The symptom engine ranks possible crop-specific issues by weighted overlap.
+- Image analysis validates JPG/PNG/WebP uploads up to 10 MB and preprocesses them into reusable color/texture features.
+- A configured compatible model is used when available; otherwise the result is explicitly labelled as a demo image heuristic, not a trained diagnostic model.
 - Results use “possible issue” and always include the advisory-only disclaimer.
-- No deep-learning image classifier is claimed or included.
 
 ## Tests
 
 ```bash
 cd backend
 pytest -q
+
+cd ../frontend
+pnpm test
+pnpm run lint
+pnpm run build
 ```
 
-The suite covers registration, login, invalid login, ownership, polygon validation, area calculation, scoring, crop ranking, the provided ₹18,000 profit example, NDVI 0.60, crop-specific symptom matching, dashboard/provider fallback and all four language files.
+The suites cover registration/login, ownership, persistent farm and field workflows, polygon validation, calculations, crop and image advisory safeguards, immediate language switching, and all four language dictionaries.
 
 ## Demo mode and graceful degradation
 
