@@ -73,6 +73,10 @@ export function DiseaseAdvisor(){
     if(!image)return;
     setBusy(true);
     
+    console.log('Starting image analysis...');
+    console.log('Selected farm:', farmId, 'Field:', fieldId);
+    console.log('Selected crop:', cropId);
+    
     // Always provide a proper result structure
     const resultData = {
       message: 'Image analysis completed. Based on the uploaded image, here are the potential issues detected.',
@@ -91,6 +95,8 @@ export function DiseaseAdvisor(){
       fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
     };
     
+    console.log('Setting result data:', resultData);
+    
     try{
       const features={
         'leaf_color': 'unknown',
@@ -104,6 +110,7 @@ export function DiseaseAdvisor(){
       console.error('Image analysis failed:',error);
     }finally{
       setResult(resultData);
+      console.log('Result set to state:', resultData);
       setBusy(false)
     }
   };
@@ -204,6 +211,9 @@ export function DiseaseAdvisor(){
           <span>Crop: {crops.find(c=>c.id===cropId)?.name || 'Unknown Crop'}</span>
           <span>Analysis Type: {mode==='image'?'Image Analysis':'Symptom Analysis'}</span>
         </div>
+      </div>
+      <div style={{background: '#e8f3ea', padding: '10px', margin: '10px 0', borderRadius: '8px'}}>
+        <strong>DEBUG: Result state loaded - showing {result.matches?.length || 0} matches</strong>
       </div>
       {result.matches && result.matches.length > 0 ? (
         result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card">
