@@ -8,7 +8,106 @@ import { languages } from '../i18n'
 
 export function DiseaseAdvisor(){const {t}=useApp();const [crops,setCrops]=useState(null);const [cropId,setCropId]=useState(1);const [symptoms,setSymptoms]=useState([]);const [selected,setSelected]=useState([]);const [result,setResult]=useState(null);const [busy,setBusy]=useState(false);useEffect(()=>{api.diseaseCrops().then(items=>{setCrops(items);if(items[0])setCropId(items[0].id)})},[]);useEffect(()=>{setSelected([]);setResult(null);api.symptoms(cropId).then(setSymptoms)},[cropId]);if(!crops)return <Loading/>;const toggle=id=>setSelected(selected.includes(id)?selected.filter(x=>x!==id):[...selected,id]);const analyze=async()=>{setBusy(true);setResult(await api.analyzeDisease(+cropId,selected));setBusy(false)};return <><PageHeader eyebrow="SYMPTOM-BASED GUIDANCE" title="What are you noticing?" description="Select visible symptoms to find crop-specific possible issues. This does not use an image classifier." action={<Badge tone="sand">Advisory only</Badge>}/><div className="disease-layout"><section className="panel disease-form"><label>Crop<select value={cropId} onChange={e=>setCropId(+e.target.value)}>{crops.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><div className="symptom-head"><h2>Select all visible symptoms</h2><span>{selected.length} selected</span></div><div className="symptom-grid">{symptoms.map(s=><button type="button" className={selected.includes(s.id)?'selected':''} onClick={()=>toggle(s.id)} key={s.id}><span>{s.name}</span>{selected.includes(s.id)?<Check/>:<i/>}</button>)}</div><Button className="full" loading={busy} disabled={!selected.length} onClick={analyze}><Stethoscope size={18}/> Compare possible issues</Button></section><aside className="disease-help"><ShieldAlert/><h2>Use what you can see</h2><p>Choose symptoms from several parts of the plant where possible.</p><ol><li>Check upper and lower leaves</li><li>Look for insects or residue</li><li>Notice whether symptoms are spreading</li></ol></aside></div>{result&&<section className="diagnosis-results"><div className="diagnosis-note"><AlertTriangle/><p><strong>{t('advisoryDisclaimer')}</strong><span>{result.message}</span></p></div>{result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}</section>}</>}
 
-export function Advisories(){const [items,setItems]=useState(null);const [fieldId,setFieldId]=useState(null);const [fields,setFields]=useState([]);const [farms,setFarms]=useState([]);const [loading,setLoading]=useState(true);useEffect(()=>{setLoading(true);api.farms().then(async farms=>{setFarms(farms);if(farms.length>0){const fieldList=await api.fields(farms[0].id);setFields(fieldList);if(fieldList.length>0){setFieldId(fieldList[0].id);api.advisories(fieldList[0].id).then(setItems).finally(()=>setLoading(false))}else{setLoading(false)}}else{setLoading(false)}}).catch(err=>{console.error('Error loading advisories:',err);setLoading(false)})},[]);if(loading)return <Loading/>;if(farms.length===0)return <div className="recommendation-empty"><Bell/><h2>No farms found</h2><p>Create a farm first to view advisories.</p><a className="button button-primary" href="/farms">Create Farm</a></div>;if(fields.length===0)return <div className="recommendation-empty"><Bell/><h2>No fields in this farm</h2><p>Add a field to view advisories.</p><a className="button button-primary" href={`/fields/new?farm=${farms[0].id}`}>Add Field</a></div>;if(!items)return <Loading/>;const icons={irrigation:Droplets,crop_health:HeartPulse,weather:CloudRain};return <><PageHeader eyebrow="ACTION CENTRE" title="Farm advisories" description="Prioritized guidance based on your field, weather, soil moisture and vegetation condition."/>{fields.length>1&&<div className="panel"><label>Select field<select value={fieldId} onChange={e=>{setFieldId(+e.target.value);api.advisories(+e.target.value).then(setItems)}}>{fields.map(f=><option value={f.id} key={f.id}>{f.name}</option>)}</select></label></div>}<div className="advisory-list">{items.map((item,index)=>{const Icon=icons[item.type]||Sprout;return <article key={item.id} className="advisory-row"><div className={`advisory-icon severity-${item.severity}`}><Icon/></div><div><div><span className="eyebrow">{item.type.replace('_',' ')}</span><Badge tone={item.severity==='moderate'?'sand':'green'}>{item.severity}</Badge></div><h2>{index===0?'Wait and check before irrigating':'Continue routine crop checks'}</h2><p>{item.message}</p><small>Generated from available field data · Advisory only</small></div><ChevronRight/></article>})}</div></>}
+export function Advisories(){
+  const [items,setItems]=useState(null);
+  const [fieldId,setFieldId]=useState(null);
+  const [fields,setFields]=useState([]);
+  const [farms,setFarms]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [expandedId,setExpandedId]=useState(null);
+  
+  useEffect(()=>{
+    setLoading(true);
+    api.farms().then(async farms=>{
+      setFarms(farms);
+      if(farms.length>0){
+        const fieldList=await api.fields(farms[0].id);
+        setFields(fieldList);
+        if(fieldList.length>0){
+          setFieldId(fieldList[0].id);
+          api.advisories(fieldList[0].id).then(setItems).finally(()=>setLoading(false))
+        }else{setLoading(false)}
+      }else{setLoading(false)}
+    }).catch(err=>{
+      console.error('Error loading advisories:',err);
+      setLoading(false)
+    })
+  },[]);
+  
+  if(loading)return <Loading/>;
+  if(farms.length===0)return <div className="recommendation-empty"><Bell/><h2>No farms found</h2><p>Create a farm first to view advisories.</p><a className="button button-primary" href="/farms">Create Farm</a></div>;
+  if(fields.length===0)return <div className="recommendation-empty"><Bell/><h2>No fields in this farm</h2><p>Add a field to view advisories.</p><a className="button button-primary" href={`/fields/new?farm=${farms[0].id}`}>Add Field</a></div>;
+  if(!items)return <Loading/>;
+  
+  const icons={irrigation:Droplets,crop_health:HeartPulse,weather:CloudRain};
+  
+  const getDetailedInfo = (item) => {
+    switch(item.type) {
+      case 'irrigation':
+        return {
+          title: 'Irrigation Advisory Details',
+          actions: ['Check soil moisture at 15cm depth', 'Delay irrigation by 1-2 days if rain expected', 'Monitor weather forecast for next 48 hours', 'Consider field drainage conditions'],
+          timing: 'Review in 24-48 hours',
+          impact: 'Medium impact on water usage'
+        };
+      case 'crop_health':
+        return {
+          title: 'Crop Health Advisory Details',
+          actions: ['Continue routine field inspection', 'Monitor leaf color and growth patterns', 'Check for pest activity', 'Record any changes in plant health'],
+          timing: 'Weekly review recommended',
+          impact: 'Low impact expected'
+        };
+      case 'weather':
+        return {
+          title: 'Weather Advisory Details',
+          actions: ['Secure loose materials', 'Check drainage systems', 'Plan field activities around weather', 'Monitor for disease risk from humidity'],
+          timing: 'Monitor weather daily',
+          impact: 'Depends on weather severity'
+        };
+      default:
+        return {
+          title: 'Advisory Details',
+          actions: ['Monitor field conditions', 'Follow standard agricultural practices', 'Consult local agricultural expert if unsure'],
+          timing: 'As needed',
+          impact: 'Variable'
+        };
+    }
+  };
+  
+  return <>
+    <PageHeader eyebrow="ACTION CENTRE" title="Farm advisories" description="Prioritized guidance based on your field, weather, soil moisture and vegetation condition."/>
+    {fields.length>1&&<div className="panel"><label>Select field<select value={fieldId} onChange={e=>{setFieldId(+e.target.value);api.advisories(+e.target.value).then(setItems)}}>{fields.map(f=><option value={f.id} key={f.id}>{f.name}</option>)}</select></label></div>}
+    <div className="advisory-list">
+      {items.map((item,index)=>{
+        const Icon=icons[item.type]||Sprout;
+        const isExpanded = expandedId === item.id;
+        const details = getDetailedInfo(item);
+        return <article key={item.id} className={`advisory-row ${isExpanded?'expanded':''}`}>
+          <div className={`advisory-icon severity-${item.severity}`}><Icon/></div>
+          <div>
+            <div><span className="eyebrow">{item.type.replace('_',' ')}</span><Badge tone={item.severity==='moderate'?'sand':'green'}>{item.severity}</Badge></div>
+            <h2>{index===0?'Wait and check before irrigating':'Continue routine crop checks'}</h2>
+            <p>{item.message}</p>
+            <small>Generated from available field data · Advisory only</small>
+            {isExpanded && <div className="advisory-details">
+              <h3>{details.title}</h3>
+              <ul>
+                {details.actions.map((action, i) => <li key={i}>{action}</li>)}
+              </ul>
+              <div className="advisory-meta">
+                <span><strong>Timing:</strong> {details.timing}</span>
+                <span><strong>Impact:</strong> {details.impact}</span>
+              </div>
+            </div>}
+          </div>
+          <button className="advisory-expand" onClick={()=>setExpandedId(isExpanded?null:item.id)}>
+            <ChevronRight/>
+          </button>
+        </article>
+      })}
+    </div>
+  </>
+}
 
 export function Notifications(){const [items,setItems]=useState(null);const [loading,setLoading]=useState(true);useEffect(()=>{setLoading(true);api.notifications().then(setItems).catch(err=>{console.error('Error loading notifications:',err);setItems([])}).finally(()=>setLoading(false))},[]);if(loading)return <Loading/>;if(!items||items.length===0)return <div className="recommendation-empty"><Bell/><h2>No notifications</h2><p>You'll see weather, field health and planning updates here once you have farms and fields.</p><a className="button button-primary" href="/farms">Create Farm</a></div>;const read=async id=>{await api.readNotification(id);setItems(items.map(x=>x.id===id?{...x,is_read:true}:x))};return <><PageHeader eyebrow="UPDATES" title="Notifications" description="Weather, field health and planning updates for your farms." action={<Badge>{items.filter(x=>!x.is_read).length} unread</Badge>}/><div className="notification-list">{items.map(item=><button key={item.id} onClick={()=>read(item.id)} className={item.is_read?'read':''}><div className={`notification-icon ${item.type}`}><Bell/></div><div><span>{item.type}</span><h2>{item.title}</h2><p>{item.message}</p><small>Today</small></div>{!item.is_read&&<i/>}</button>)}</div></>}
 
