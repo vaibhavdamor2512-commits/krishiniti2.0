@@ -16,7 +16,6 @@ export const demoUser = { id: 1, name: 'Demo Farmer', mobile: '9999999999', loca
 export const demoFarm = { id: 1, name: 'Green Valley Farm', location: 'Ahmedabad, Gujarat', total_area: 2.4, latitude: 22.9808, longitude: 72.469 }
 export const demoField = { id: 1, farm_id: 1, name: 'Field One', polygon, latitude: 22.9808, longitude: 72.469, area: 2.4, current_crop: 'Cotton', irrigation_available: true, soil: { nitrogen:75, phosphorus:42, potassium:55, ph:6.8, soil_type:'Loamy', moisture:38 } }
 
-// In-memory storage for demo farms and fields
 let demoFarms = [demoFarm]
 let demoFields = [demoField]
 export const demoWeather = { temperature:31.2, humidity:68, rainfall:8, rain_probability:62, wind_speed:11.4, forecast_summary:'Partly cloudy with evening showers', weather_risk:'medium', provider:'demo', irrigation_advisory:{ code:'DELAY_IRRIGATION', severity:'moderate', message:'Rain is expected. Consider delaying irrigation and monitor soil moisture before watering.' } }
@@ -36,11 +35,12 @@ const fallback = async (work, value) => {
   try { return (await work()).data }
   catch (error) {
     console.log('API Error:', error, 'Response:', error.response)
-    // Always use demo mode if backend is unavailable or returns error
-    if (!error.response || error.response.status >= 400) {
-      console.log('Using demo fallback')
+    // Only use fallback if backend is completely unavailable (network error)
+    if (!error.response) {
+      console.log('Backend unavailable - using fallback')
       return typeof value === 'function' ? value() : value
     }
+    // For any API errors (401, 404, 500, etc.), let them propagate
     throw new Error(messageFor(error))
   }
 }
@@ -52,38 +52,20 @@ const mutate = async (work, fallbackMessage) => {
 
 export const api = {
   login: (mobile,password) => {
-    // Demo credentials override
-    if (mobile === '9999999999' && password === 'demo123') {
-      return Promise.resolve({access_token:'demo-token',token_type:'bearer',user:demoUser,refresh_token:'demo-refresh'})
-    }
-    return fallback(()=>client.post('/auth/login',{mobile,password}), ()=>({access_token:'demo-token',token_type:'bearer',user:demoUser,refresh_token:'demo-refresh'}))
+    return fallback(()=>client.post('/auth/login',{mobile,password}), {access_token:'demo-token',token_type:'bearer',user:demoUser,refresh_token:'demo-refresh'})
   },
   register: (payload) => {
-    // In demo mode, always succeed with demo user
-    return Promise.resolve({access_token:'demo-token',token_type:'bearer',user:demoUser,refresh_token:'demo-refresh'})
+    return fallback(()=>client.post('/auth/register',payload), {access_token:'demo-token',token_type:'bearer',user:demoUser,refresh_token:'demo-refresh'})
   },
   me: () => fallback(()=>client.get('/auth/me'), demoUser),
   language: (preferred_language) => mutate(()=>client.put('/auth/language',{preferred_language}), 'Unable to save your language preference.'),
   dashboard: () => fallback(()=>client.get('/dashboard'), {empty:false,farmer:demoUser.name,farm:demoFarm,field:{...demoField,soil_moisture:38},weather:demoWeather,ndvi:{current:.67,previous:.69,trend:-.02,label:'Healthy vegetation',status:'good',message:'Continue monitoring alongside field observations.'},today_advisory:demoWeather.irrigation_advisory,unread_notifications:2,data_mode:'demo'}),
   farms: () => fallback(()=>client.get('/farms'), ()=>demoFarms),
   farm: (id) => fallback(()=>client.get(`/farms/${id}`), ()=>demoFarms.find(f => f.id === id) || demoFarm),
-  createFarm: (payload) => fallback(()=>client.post('/farms',payload), ()=>{
-    // Check if farm with same name already exists to prevent duplicates
-    const existingFarm = demoFarms.find(f => f.name === payload.name);
-    if (existingFarm) {
-      return existingFarm; // Return existing farm instead of creating duplicate
-    }
-    const newFarm = {...demoFarm, ...payload, id: Date.now()}
-    demoFarms.push(newFarm)
-    return newFarm
-  }),
+  createFarm: (payload) => fallback(()=>client.post('/farms',payload), ()=>({...demoFarm, ...payload, id: Date.now()})),
   fields: (farmId) => fallback(()=>client.get(`/fields/farm/${farmId}`), ()=>demoFields.filter(f => f.farm_id === farmId)),
   field: (id) => fallback(()=>client.get(`/fields/${id}`), ()=>demoFields.find(f => f.id === id) || demoField),
-  createField: (payload) => fallback(()=>client.post('/fields',payload), ()=>{
-    const newField = {...demoField, ...payload, id: Date.now()}
-    demoFields.push(newField)
-    return newField
-  }),
+  createField: (payload) => fallback(()=>client.post('/fields',payload), ()=>({...demoField, ...payload, id: Date.now()})),
   updateField: (id,payload) => fallback(()=>client.put(`/fields/${id}`,payload), demoField),
   recommendations: (field_id) => fallback(()=>client.post('/crops/recommend',{field_id,season:'Kharif'}), ()=>{
     const field = demoFields.find(f => f.id === field_id) || demoField
