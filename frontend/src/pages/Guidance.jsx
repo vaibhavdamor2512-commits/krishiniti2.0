@@ -216,23 +216,30 @@ export function DiseaseAdvisor(){
         <strong>DEBUG: Result state loaded - showing {result.matches?.length || 0} matches</strong>
       </div>
       {result.matches && result.matches.length > 0 ? (
-        result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card">
-          <div className="match-score">
-            <strong>{match.match_confidence}%</strong>
-            <span>Confidence Score</span>
-          </div>
-          <div>
-            <p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p>
-            <h2>{match.possible_issue}</h2>
-            <p><strong>Analysis Result:</strong> {match.observed_symptoms && match.observed_symptoms.length > 0 ? match.observed_symptoms.join(', ') : 'Visual analysis completed'}</p>
-            <p><strong>Recommended Action:</strong> {match.recommended_action}</p>
-            <div className="management-grid">
-              <div><strong>Prevention</strong><span>{match.prevention}</span></div>
-              <div><strong>Management</strong><span>{match.management}</span></div>
+        <div className="analysis-report-container">
+          <h3>📊 Disease Analysis Report</h3>
+          {result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card">
+            <div className="match-score">
+              <strong>{match.match_confidence}%</strong>
+              <span>Confidence Score</span>
             </div>
-          </div>
-          <Badge tone="sand">{match.severity} severity</Badge>
-        </article>)
+            <div>
+              <p className="eyebrow">{index===0?'🎯 MOST LIKELY MATCH':'🔍 OTHER POSSIBLE ISSUE'}</p>
+              <h2>{match.possible_issue}</h2>
+              <div className="analysis-result-box">
+                <p><strong>🔬 Analysis Result:</strong> {match.observed_symptoms && match.observed_symptoms.length > 0 ? match.observed_symptoms.join(', ') : 'Visual analysis completed'}</p>
+              </div>
+              <div className="action-box">
+                <p><strong>💡 Recommended Action:</strong> {match.recommended_action}</p>
+              </div>
+              <div className="management-grid">
+                <div><strong>🛡️ Prevention</strong><span>{match.prevention}</span></div>
+                <div><strong>🔧 Management</strong><span>{match.management}</span></div>
+              </div>
+            </div>
+            <Badge tone="sand">{match.severity} severity</Badge>
+          </article>)}
+        </div>
       ) : (
         <div className="diagnosis-card">
           <p>No analysis results available. Please try uploading a different image or use symptom analysis.</p>
