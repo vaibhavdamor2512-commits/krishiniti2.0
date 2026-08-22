@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: krishiniti-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://krishiniti2-0.vercel.app
+      - key: DEMO_MODE
+        value: true
