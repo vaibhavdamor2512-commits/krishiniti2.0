@@ -31,7 +31,8 @@ const messageFor = (error, fallbackMessage = 'Please try again.') => {
 const fallback = async (work, value) => {
   try { return (await work()).data }
   catch (error) {
-    if (!error.response && import.meta.env.VITE_DEMO_MODE === 'true') return typeof value === 'function' ? value() : value
+    // Always use demo mode if backend is unavailable
+    if (!error.response) return typeof value === 'function' ? value() : value
     throw new Error(messageFor(error))
   }
 }
