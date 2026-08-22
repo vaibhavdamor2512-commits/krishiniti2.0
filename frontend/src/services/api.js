@@ -86,68 +86,35 @@ export const api = {
   symptoms: (cropId) => fallback(()=>client.get(`/diseases/symptoms/${cropId}`), ['Yellow leaves','Brown spots','Black spots','Leaf curling','White powder','Holes in leaves','Leaf drying','Visible insects','Wilting','Abnormal growth'].map((name,i)=>({id:cropId*100+i,name,description:`Visible sign: ${name.toLowerCase()}.`}))),
   analyzeDisease: (crop_id,symptom_ids) => fallback(()=>client.post('/diseases/analyze',{crop_id,symptom_ids}), {matches:[{possible_issue:crop_id===6?'Early blight':'Cotton leaf curl',match_confidence:78,severity:'medium',observed_symptoms:['Yellow leaves','Leaf curling'],recommended_action:'Inspect affected plants and follow suitable prevention and management practices.',prevention:'Use tolerant varieties and inspect plants regularly.',management:'Use integrated pest management and locally approved controls.'}],low_confidence:false,message:'Possible issues ranked from the selected visible symptoms.',disclaimer:'This is an advisory estimate, not a confirmed diagnosis.'}),
   analyzeDiseaseImage: async (crop_id, image, features) => {
-    const demoCropsList = [{id:1,name:'Cotton'},{id:6,name:'Tomato'},{id:3,name:'Wheat'}];
-    const crop = demoCropsList.find(c => c.id === crop_id) || demoCropsList[0];
+    // Use backend ML-based image analysis
+    const form = new FormData();
+    form.append('crop_id', String(crop_id));
+    form.append('features', JSON.stringify(features));
+    form.append('image', image);
     
     try {
-      // Use Tajiri Vision API for real disease detection
-      const formData = new FormData();
-      formData.append('image', image);
-      formData.append('crop_type', crop.name.toLowerCase());
-      formData.append('region', 'India');
-      formData.append('language', 'en');
-      
-      const response = await fetch('https://api.tajirifarm.com/diagnoses/', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error('API request failed');
-      }
-      
-      const apiResult = await response.json();
-      
-      // Transform API response to our format
-      return {
-        message: 'Image analysis completed. Based on the uploaded image, here are the potential issues detected.',
-        matches: apiResult.diagnoses?.map(d => ({
-          possible_issue: d.name || 'Unknown disease',
-          match_confidence: Math.round((d.confidence || 0.7) * 100),
-          severity: d.severity || 'moderate',
-          observed_symptoms: d.symptoms || ['Visual analysis from uploaded image'],
-          recommended_action: d.treatment || 'Consult agricultural expert for specific treatment',
-          prevention: d.prevention || 'Follow standard agricultural practices',
-          management: d.management || 'Monitor and manage according to expert guidelines'
-        })) || [{
-          possible_issue: 'No specific disease detected',
-          match_confidence: 50,
-          severity: 'low',
-          observed_symptoms: ['Visual analysis completed'],
-          recommended_action: 'Continue monitoring plant health',
-          prevention: 'Maintain good agricultural practices',
-          management: 'Regular field inspection recommended'
-        }],
-        low_confidence: false,
-        disclaimer: 'AI-powered analysis. For confirmed diagnosis, consult with agricultural experts.'
-      };
+      const response = await client.post('/diseases/analyze-image', form);
+      return response.data;
     } catch (error) {
-      console.error('Tajiri API error, using fallback:', error);
-      // Fallback to demo data if API fails
-      return {
-        message: 'Image analysis completed. Based on the uploaded image, here are the potential issues detected.',
-        matches: [{
-          possible_issue: 'Leaf spot disease detected',
-          match_confidence: 72,
-          severity: 'moderate',
-          observed_symptoms: ['Visible spots on leaves', 'Possible fungal infection signs'],
-          recommended_action: 'Apply appropriate fungicide and improve air circulation around plants.',
-          prevention: 'Use disease-resistant varieties and maintain proper plant spacing.',
-          management: 'Remove affected leaves and apply copper-based fungicides as recommended.'
-        }],
-        low_confidence: true,
-        disclaimer: 'API unavailable - showing demo results. For production, ensure API access is configured.'
-      };
+      console.error('Backend image analysis failed:', error);
+      // Fallback to demo data only on network errors
+      if (!error.response) {
+        return {
+          message: 'Image analysis completed. Based on the uploaded image, here are the potential issues detected.',
+          matches: [{
+            possible_issue: 'Leaf spot disease detected',
+            match_confidence: 72,
+            severity: 'moderate',
+            observed_symptoms: ['Visible spots on leaves', 'Possible fungal infection signs'],
+            recommended_action: 'Apply appropriate fungicide and improve air circulation around plants.',
+            prevention: 'Use disease-resistant varieties and maintain proper plant spacing.',
+            management: 'Remove affected leaves and apply copper-based fungicides as recommended.'
+          }],
+          low_confidence: true,
+          disclaimer: 'Backend unavailable - showing demo results. For production, ensure backend is running.'
+        };
+      }
+      throw error;
     }
   },
   advisories: (fieldId) => fallback(()=>client.get(`/advisories/${fieldId}`), [{id:1,type:'irrigation',severity:'moderate',message:'Rain is expected. Consider delaying irrigation and monitor soil moisture.'},{id:2,type:'crop_health',severity:'low',message:'Vegetation condition is good. Continue routine field checks.'}]),
