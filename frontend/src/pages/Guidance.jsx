@@ -212,9 +212,6 @@ export function DiseaseAdvisor(){
           <span>Analysis Type: {mode==='image'?'Image Analysis':'Symptom Analysis'}</span>
         </div>
       </div>
-      <div style={{background: '#e8f3ea', padding: '10px', margin: '10px 0', borderRadius: '8px'}}>
-        <strong>DEBUG: Result state loaded - showing {result.matches?.length || 0} matches</strong>
-      </div>
       {result.matches && result.matches.length > 0 ? (
         <div className="analysis-report-container">
           <h3>📊 Disease Analysis Report</h3>
