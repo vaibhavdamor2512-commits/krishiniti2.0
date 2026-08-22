@@ -68,6 +68,11 @@ export const api = {
   farms: () => fallback(()=>client.get('/farms'), ()=>demoFarms),
   farm: (id) => fallback(()=>client.get(`/farms/${id}`), ()=>demoFarms.find(f => f.id === id) || demoFarm),
   createFarm: (payload) => fallback(()=>client.post('/farms',payload), ()=>{
+    // Check if farm with same name already exists to prevent duplicates
+    const existingFarm = demoFarms.find(f => f.name === payload.name);
+    if (existingFarm) {
+      return existingFarm; // Return existing farm instead of creating duplicate
+    }
     const newFarm = {...demoFarm, ...payload, id: Date.now()}
     demoFarms.push(newFarm)
     return newFarm

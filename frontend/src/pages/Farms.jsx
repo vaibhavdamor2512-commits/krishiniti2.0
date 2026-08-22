@@ -8,7 +8,29 @@ import { api } from '../services/api'
 export function Farms(){
   const {t}=useApp();const [farms,setFarms]=useState(null);const [show,setShow]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [saved,setSaved]=useState('');const [form,setForm]=useState({name:'',location:'Ahmedabad, Gujarat',total_area:'',latitude:22.9808,longitude:72.469})
   useEffect(()=>{api.farms().then(setFarms).catch(err=>setError(err.message||t('unableLoad')))},[t])
-  const submit=async(e)=>{e.preventDefault();if(busy)return;setBusy(true);setError('');setSaved('');try{const item=await api.createFarm({...form,total_area:Number(form.total_area),latitude:Number(form.latitude),longitude:Number(form.longitude)});setFarms(current=>[...(current||[]),item]);setForm(value=>({...value,name:'',total_area:''}));setShow(false);setSaved(t('farmSaved'))}catch(err){setError(err.message||t('unableLoad'))}finally{setBusy(false)}}
+  const submit=async(e)=>{
+    e.preventDefault();
+    if(busy)return;
+    setBusy(true);
+    setError('');
+    setSaved('');
+    try{
+      const item=await api.createFarm({...form,total_area:Number(form.total_area),latitude:Number(form.latitude),longitude:Number(form.longitude)});
+      // Check if farm already exists in the list to prevent duplicates
+      setFarms(current=>{
+        const existing=current?.find(f=>f.name===item.name);
+        if(existing)return current;
+        return [...(current||[]),item];
+      });
+      setForm(value=>({...value,name:'',total_area:''}));
+      setShow(false);
+      setSaved(t('farmSaved'))
+    }catch(err){
+      setError(err.message||t('unableLoad'))
+    }finally{
+      setBusy(false)
+    }
+  }
   if(!farms&&!error)return <Loading/>
   return <><PageHeader eyebrow={t('farmManagement')} title={t('yourFarms')} description={t('farmDescription')} action={<Button onClick={()=>{setShow(value=>!value);setError('');setSaved('')}}><Plus size={17}/> {t('addFarm')}</Button>}/>{error&&<div className="form-error" role="alert">{error}</div>}{saved&&<div className="success-banner" role="status">{saved}</div>}{show&&<form className="panel inline-form" onSubmit={submit}><h2>{t('addAFarm')}</h2><label>{t('farmName')}<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Green Valley Farm"/></label><label>{t('location')}<input required value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></label><label>{t('approxArea')}<input required type="number" min="0.1" step=".1" value={form.total_area} onChange={e=>setForm({...form,total_area:e.target.value})}/></label><Button loading={busy}>{busy?t('saving'):t('saveFarm')}</Button></form>}{farms?.length===0?<Empty title={t('noFarms')} text={t('noFarmsText')}/>:<div className="farm-grid">{farms?.map(farm=><Link to={`/farms/${farm.id}`} className="farm-card" key={farm.id}><div className="farm-art"><div/></div><div className="farm-card-copy"><div><span className="eyebrow">{t('farm')}</span><h2>{farm.name}</h2><p><MapPin size={15}/>{farm.location}</p></div><ArrowRight/></div><div className="farm-stats"><span><Ruler/> {farm.total_area||'—'} {t('acres')}</span><span><Sprout/> {t('fields')}</span></div></Link>)}</div>}</>
 }
