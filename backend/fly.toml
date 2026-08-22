@@ -1,0 +1,39 @@
+# fly.toml app configuration file generated for krishiniti-backend on 2024-08-22T10:41:38+05:30
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "krishiniti-backend"
+primary_region = "sin"
+
+[build]
+  [build.args]
+    PYTHON_VERSION = "3.12"
+
+[env]
+  PORT = "8080"
+  FRONTEND_URL = "https://krishiniti2-0.vercel.app"
+  DEMO_MODE = "true"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "10s"
+  grace_period = "5s"
+  method = "GET"
+  path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[processes]
+  app = "uvicorn app.main:app --host 0.0.0.0 --port 8080"
