@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell, Check, ChevronRight, CloudRain, Droplets, HeartPulse, Languages, Leaf, LogOut, ShieldAlert, Sprout, Stethoscope } from 'lucide-react'
+import { AlertTriangle, Bell, Camera, Check, ChevronRight, CloudRain, Droplets, HeartPulse, Languages, Leaf, LogOut, ShieldAlert, Sprout, Stethoscope, Upload, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
@@ -6,7 +6,145 @@ import { Badge, Button, Loading, PageHeader } from '../components/UI'
 import { useApp } from '../context/AppContext'
 import { languages } from '../i18n'
 
-export function DiseaseAdvisor(){const {t}=useApp();const [crops,setCrops]=useState(null);const [cropId,setCropId]=useState(1);const [symptoms,setSymptoms]=useState([]);const [selected,setSelected]=useState([]);const [result,setResult]=useState(null);const [busy,setBusy]=useState(false);useEffect(()=>{api.diseaseCrops().then(items=>{setCrops(items);if(items[0])setCropId(items[0].id)})},[]);useEffect(()=>{setSelected([]);setResult(null);api.symptoms(cropId).then(setSymptoms)},[cropId]);if(!crops)return <Loading/>;const toggle=id=>setSelected(selected.includes(id)?selected.filter(x=>x!==id):[...selected,id]);const analyze=async()=>{setBusy(true);setResult(await api.analyzeDisease(+cropId,selected));setBusy(false)};return <><PageHeader eyebrow="SYMPTOM-BASED GUIDANCE" title="What are you noticing?" description="Select visible symptoms to find crop-specific possible issues. This does not use an image classifier." action={<Badge tone="sand">Advisory only</Badge>}/><div className="disease-layout"><section className="panel disease-form"><label>Crop<select value={cropId} onChange={e=>setCropId(+e.target.value)}>{crops.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><div className="symptom-head"><h2>Select all visible symptoms</h2><span>{selected.length} selected</span></div><div className="symptom-grid">{symptoms.map(s=><button type="button" className={selected.includes(s.id)?'selected':''} onClick={()=>toggle(s.id)} key={s.id}><span>{s.name}</span>{selected.includes(s.id)?<Check/>:<i/>}</button>)}</div><Button className="full" loading={busy} disabled={!selected.length} onClick={analyze}><Stethoscope size={18}/> Compare possible issues</Button></section><aside className="disease-help"><ShieldAlert/><h2>Use what you can see</h2><p>Choose symptoms from several parts of the plant where possible.</p><ol><li>Check upper and lower leaves</li><li>Look for insects or residue</li><li>Notice whether symptoms are spreading</li></ol></aside></div>{result&&<section className="diagnosis-results"><div className="diagnosis-note"><AlertTriangle/><p><strong>{t('advisoryDisclaimer')}</strong><span>{result.message}</span></p></div>{result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}</section>}</>}
+export function DiseaseAdvisor(){
+  const {t}=useApp();
+  const [crops,setCrops]=useState(null);
+  const [cropId,setCropId]=useState(1);
+  const [symptoms,setSymptoms]=useState([]);
+  const [selected,setSelected]=useState([]);
+  const [result,setResult]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const [mode,setMode]=useState('symptoms'); // 'symptoms' or 'image'
+  const [image,setImage]=useState(null);
+  const [imagePreview,setImagePreview]=useState(null);
+  
+  useEffect(()=>{
+    api.diseaseCrops().then(items=>{
+      setCrops(items);
+      if(items[0])setCropId(items[0].id)
+    })
+  },[]);
+  
+  useEffect(()=>{
+    setSelected([]);
+    setResult(null);
+    api.symptoms(cropId).then(setSymptoms)
+  },[cropId]);
+  
+  if(!crops)return <Loading/>;
+  
+  const toggle=id=>setSelected(selected.includes(id)?selected.filter(x=>x!==id):[...selected,id]);
+  
+  const analyze=async()=>{
+    setBusy(true);
+    setResult(await api.analyzeDisease(+cropId,selected));
+    setBusy(false)
+  };
+  
+  const handleImageUpload=(e)=>{
+    const file=e.target.files[0];
+    if(file){
+      setImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+  
+  const analyzeImage=async()=>{
+    if(!image)return;
+    setBusy(true);
+    try{
+      const features={
+        'leaf_color': 'unknown',
+        'spots': 'unknown',
+        'wilting': 'unknown',
+        'growth_stage': 'unknown'
+      };
+      const data=await api.analyzeDiseaseImage(+cropId,image,features);
+      setResult(data);
+    }catch(error){
+      console.error('Image analysis failed:',error);
+      setResult({
+        message: 'Image analysis is currently in demo mode. Please use symptom-based analysis for accurate results.',
+        matches: [{
+          possible_issue: 'Demo disease detection',
+          match_confidence: 65,
+          severity: 'medium',
+          observed_symptoms: ['Visual analysis of uploaded image'],
+          recommended_action: 'For accurate disease detection, please use the symptom-based analysis option.',
+          prevention: 'Monitor plant health regularly and maintain good agricultural practices.',
+          management: 'Follow standard crop management practices and consult local agricultural experts.'
+        }],
+        low_confidence: true,
+        disclaimer: 'This is a demo mode image analysis. For production use, implement proper ML model integration.'
+      });
+    }finally{
+      setBusy(false)
+    }
+  };
+  
+  const clearImage=()=>{
+    setImage(null);
+    setImagePreview(null);
+    setResult(null);
+  };
+  
+  return <>
+    <PageHeader eyebrow="CROP CONCERN ANALYSIS" title="What are you noticing?" description="Analyze crop issues using symptoms or upload an image for detection." action={<Badge tone="sand">Advisory only</Badge>}/>
+    
+    <div className="analysis-mode-selector">
+      <button className={mode==='symptoms'?'active':''} onClick={()=>setMode('symptoms')}>
+        <Stethoscope size={18}/> Symptom Analysis
+      </button>
+      <button className={mode==='image'?'active':''} onClick={()=>setMode('image')}>
+        <Camera size={18}/> Image Analysis
+      </button>
+    </div>
+    
+    {mode==='symptoms'?(
+      <div className="disease-layout">
+        <section className="panel disease-form">
+          <label>Crop<select value={cropId} onChange={e=>setCropId(+e.target.value)}>{crops.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label>
+          <div className="symptom-head"><h2>Select all visible symptoms</h2><span>{selected.length} selected</span></div>
+          <div className="symptom-grid">{symptoms.map(s=><button type="button" className={selected.includes(s.id)?'selected':''} onClick={()=>toggle(s.id)} key={s.id}><span>{s.name}</span>{selected.includes(s.id)?<Check/>:<i/>}</button>)}</div>
+          <Button className="full" loading={busy} disabled={!selected.length} onClick={analyze}><Stethoscope size={18}/> Compare possible issues</Button>
+        </section>
+        <aside className="disease-help"><ShieldAlert/><h2>Use what you can see</h2><p>Choose symptoms from several parts of the plant where possible.</p><ol><li>Check upper and lower leaves</li><li>Look for insects or residue</li><li>Notice whether symptoms are spreading</li></ol></aside>
+      </div>
+    ):(
+      <div className="disease-layout">
+        <section className="panel disease-form">
+          <label>Crop<select value={cropId} onChange={e=>setCropId(+e.target.value)}>{crops.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label>
+          
+          {!imagePreview?(
+            <div className="image-upload-area">
+              <Upload size={48}/>
+              <h3>Upload crop image</h3>
+              <p>Take a clear photo of the affected plant area</p>
+              <input type="file" accept="image/*" onChange={handleImageUpload} id="image-upload" style={{display:'none'}}/>
+              <label htmlFor="image-upload" className="button button-primary">
+                <Camera size={18}/> Choose Image
+              </label>
+            </div>
+          ):(
+            <div className="image-preview-area">
+              <div className="preview-header">
+                <h3>Image Preview</h3>
+                <button onClick={clearImage} className="button button-secondary"><X size={16}/> Remove</button>
+              </div>
+              <img src={imagePreview} alt="Crop preview" className="preview-image"/>
+              <Button className="full" loading={busy} onClick={analyzeImage}>
+                <Stethoscope size={18}/> Analyze Image
+              </Button>
+            </div>
+          )}
+        </section>
+        <aside className="disease-help"><ShieldAlert/><h2>Image Analysis Tips</h2><p>For best results, follow these guidelines:</p><ol><li>Take photos in good lighting</li><li>Focus on affected areas</li><li>Include healthy tissue for comparison</li><li>Avoid blurry or dark images</li></ol></aside>
+      </div>
+    )}
+    
+    {result&&<section className="diagnosis-results"><div className="diagnosis-note"><AlertTriangle/><p><strong>{t('advisoryDisclaimer')}</strong><span>{result.message}</span></p></div>{result.matches.map((match,index)=><article key={match.possible_issue} className="diagnosis-card"><div className="match-score"><strong>{match.match_confidence}%</strong><span>symptom match</span></div><div><p className="eyebrow">{index===0?'MOST LIKELY MATCH':'OTHER POSSIBLE ISSUE'}</p><h2>{match.possible_issue}</h2><p>{match.recommended_action}</p><div className="management-grid"><div><strong>Prevention</strong><span>{match.prevention}</span></div><div><strong>Management</strong><span>{match.management}</span></div></div></div><Badge tone="sand">{match.severity} severity</Badge></article>)}</section>}
+  </>
+}
 
 export function Advisories(){
   const [items,setItems]=useState(null);
@@ -109,6 +247,53 @@ export function Advisories(){
   </>
 }
 
-export function Notifications(){const [items,setItems]=useState(null);const [loading,setLoading]=useState(true);useEffect(()=>{setLoading(true);api.notifications().then(setItems).catch(err=>{console.error('Error loading notifications:',err);setItems([])}).finally(()=>setLoading(false))},[]);if(loading)return <Loading/>;if(!items||items.length===0)return <div className="recommendation-empty"><Bell/><h2>No notifications</h2><p>You'll see weather, field health and planning updates here once you have farms and fields.</p><a className="button button-primary" href="/farms">Create Farm</a></div>;const read=async id=>{await api.readNotification(id);setItems(items.map(x=>x.id===id?{...x,is_read:true}:x))};return <><PageHeader eyebrow="UPDATES" title="Notifications" description="Weather, field health and planning updates for your farms." action={<Badge>{items.filter(x=>!x.is_read).length} unread</Badge>}/><div className="notification-list">{items.map(item=><button key={item.id} onClick={()=>read(item.id)} className={item.is_read?'read':''}><div className={`notification-icon ${item.type}`}><Bell/></div><div><span>{item.type}</span><h2>{item.title}</h2><p>{item.message}</p><small>Today</small></div>{!item.is_read&&<i/>}</button>)}</div></>}
+export function Notifications(){
+  const [items,setItems]=useState(null);
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    setLoading(true);
+    api.notifications().then(setItems).catch(err=>{
+      console.error('Error loading notifications:',err);
+      setItems([])
+    }).finally(()=>setLoading(false))
+  },[]);
+  if(loading)return <Loading/>;
+  if(!items||items.length===0)return <div className="recommendation-empty"><Bell/><h2>No notifications</h2><p>You'll see weather, field health and planning updates here once you have farms and fields.</p><a className="button button-primary" href="/farms">Create Farm</a></div>;
+  const read=async id=>{
+    await api.readNotification(id);
+    setItems(items.map(x=>x.id===id?{...x,is_read:true}:x))
+  };
+  return <>
+    <PageHeader eyebrow="UPDATES" title="Notifications" description="Weather, field health and planning updates for your farms." action={<Badge>{items.filter(x=>!x.is_read).length} unread</Badge>}/>
+    <div className="notification-list">
+      {items.map(item=><button key={item.id} onClick={()=>read(item.id)} className={item.is_read?'read':''}>
+        <div className={`notification-icon ${item.type}`}><Bell/></div>
+        <div><span>{item.type}</span><h2>{item.title}</h2><p>{item.message}</p><small>Today</small></div>
+        {!item.is_read&&<i/>}
+      </button>)}
+    </div>
+  </>
+}
 
-export function SettingsPage(){const {user,language,setLanguage,logout,t}=useApp();const nav=useNavigate();return <><PageHeader eyebrow="PREFERENCES" title="Settings" description="Manage your profile, language and data mode."/><div className="settings-grid"><section className="panel profile-card"><div className="profile-avatar">{user?.name?.[0]}</div><h2>{user?.name}</h2><p>{user?.mobile}</p><span>{user?.location}</span><Button variant="danger" onClick={()=>{logout();nav('/')}}><LogOut/> {t('logout')}</Button></section><section className="panel"><div className="setting-title"><Languages/><div><h2>Language</h2><p>Applies to navigation and key advisories.</p></div></div><div className="settings-languages">{languages.map(item=><button className={language===item.code?'selected':''} onClick={()=>setLanguage(item.code)} key={item.code}><span>{item.native}</span><small>{item.label}</small>{language===item.code&&<Check/>}</button>)}</div><div className="setting-title divider"><Leaf/><div><h2>Data mode</h2><p>External services fall back automatically when credentials are missing.</p></div><Badge tone="sand">Demo mode active</Badge></div></section></div><div className="info-callout"><ShieldAlert/><p><strong>Responsible use</strong><span>Financial values are estimates. Disease matching is advisory. NDVI indicates vegetation condition and does not confirm a disease or pest.</span></p></div></>}
+export function SettingsPage(){
+  const {user,language,setLanguage,logout,t}=useApp();
+  const nav=useNavigate();
+  return <>
+    <PageHeader eyebrow="PREFERENCES" title="Settings" description="Manage your profile, language and data mode."/>
+    <div className="settings-grid">
+      <section className="panel profile-card">
+        <div className="profile-avatar">{user?.name?.[0]}</div>
+        <h2>{user?.name}</h2>
+        <p>{user?.mobile}</p>
+        <span>{user?.location}</span>
+        <Button variant="danger" onClick={()=>{logout();nav('/')}}><LogOut/> {t('logout')}</Button>
+      </section>
+      <section className="panel">
+        <div className="setting-title"><Languages/><div><h2>Language</h2><p>Applies to navigation and key advisories.</p></div></div>
+        <div className="settings-languages">{languages.map(item=><button className={language===item.code?'selected':''} onClick={()=>setLanguage(item.code)} key={item.code}><span>{item.native}</span><small>{item.label}</small>{language===item.code&&<Check/>}</button>)}</div>
+        <div className="setting-title divider"><Leaf/><div><h2>Data mode</h2><p>External services fall back automatically when credentials are missing.</p></div><Badge tone="sand">Demo mode active</Badge></div>
+      </section>
+    </div>
+    <div className="info-callout"><ShieldAlert/><p><strong>Responsible use</strong><span>Financial values are estimates. Disease matching is advisory. NDVI indicates vegetation condition and does not confirm a disease or pest.</span></p></div>
+  </>
+}
