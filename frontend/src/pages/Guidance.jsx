@@ -73,30 +73,6 @@ export function DiseaseAdvisor(){
     if(!image)return;
     setBusy(true);
     
-    console.log('Starting image analysis...');
-    console.log('Selected farm:', farmId, 'Field:', fieldId);
-    console.log('Selected crop:', cropId);
-    
-    // Always provide a proper result structure
-    const resultData = {
-      message: 'Image analysis completed. Based on the uploaded image, here are the potential issues detected.',
-      matches: [{
-        possible_issue: 'Leaf spot disease detected',
-        match_confidence: 72,
-        severity: 'moderate',
-        observed_symptoms: ['Visible spots on leaves', 'Possible fungal infection signs'],
-        recommended_action: 'Apply appropriate fungicide and improve air circulation around plants.',
-        prevention: 'Use disease-resistant varieties and maintain proper plant spacing.',
-        management: 'Remove affected leaves and apply copper-based fungicides as recommended.'
-      }],
-      low_confidence: false,
-      disclaimer: 'This is based on image analysis. For accurate diagnosis, consult with agricultural experts.',
-      farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
-      fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
-    };
-    
-    console.log('Setting result data:', resultData);
-    
     try{
       const features={
         'leaf_color': 'unknown',
@@ -104,13 +80,32 @@ export function DiseaseAdvisor(){
         'wilting': 'unknown',
         'growth_stage': 'unknown'
       };
-      await api.analyzeDiseaseImage(+cropId,image,features);
-      console.log('Image analysis API call completed');
+      const apiResult = await api.analyzeDiseaseImage(+cropId,image,features);
+      
+      setResult({
+        ...apiResult,
+        farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
+        fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
+      });
     }catch(error){
       console.error('Image analysis failed:',error);
+      setResult({
+        message: 'Image analysis failed. Please try again or use symptom analysis.',
+        matches: [{
+          possible_issue: 'Analysis failed',
+          match_confidence: 0,
+          severity: 'unknown',
+          observed_symptoms: ['Could not analyze image'],
+          recommended_action: 'Try uploading a different image or use symptom analysis.',
+          prevention: 'N/A',
+          management: 'N/A'
+        }],
+        low_confidence: true,
+        disclaimer: 'Image analysis encountered an error.',
+        farmName: farms.find(f=>f.id===farmId)?.name || 'Unknown Farm',
+        fieldName: fields.find(f=>f.id===fieldId)?.name || 'Unknown Field'
+      });
     }finally{
-      setResult(resultData);
-      console.log('Result set to state:', resultData);
       setBusy(false)
     }
   };
