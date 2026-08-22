@@ -15,6 +15,10 @@ const polygon = [[22.98083,72.46830],[22.98142,72.46906],[22.98078,72.46979],[22
 export const demoUser = { id: 1, name: 'Demo Farmer', mobile: '9999999999', location: 'Ahmedabad, Gujarat', farm_size: 2.4, preferred_language: 'en' }
 export const demoFarm = { id: 1, name: 'Green Valley Farm', location: 'Ahmedabad, Gujarat', total_area: 2.4, latitude: 22.9808, longitude: 72.469 }
 export const demoField = { id: 1, farm_id: 1, name: 'Field One', polygon, latitude: 22.9808, longitude: 72.469, area: 2.4, current_crop: 'Cotton', irrigation_available: true, soil: { nitrogen:75, phosphorus:42, potassium:55, ph:6.8, soil_type:'Loamy', moisture:38 } }
+
+// In-memory storage for demo farms and fields
+let demoFarms = [demoFarm]
+let demoFields = [demoField]
 export const demoWeather = { temperature:31.2, humidity:68, rainfall:8, rain_probability:62, wind_speed:11.4, forecast_summary:'Partly cloudy with evening showers', weather_risk:'medium', provider:'demo', irrigation_advisory:{ code:'DELAY_IRRIGATION', severity:'moderate', message:'Rain is expected. Consider delaying irrigation and monitor soil moisture before watering.' } }
 export const demoHistory = [.31,.38,.46,.54,.61,.66,.69,.67].map((average_ndvi,i)=>({ observation_date:`2026-${String(i+1).padStart(2,'0')}-12`, average_ndvi, minimum_ndvi:+(average_ndvi-.12).toFixed(2), maximum_ndvi:+(average_ndvi+.11).toFixed(2) }))
 export const demoRecommendations = [
@@ -61,14 +65,33 @@ export const api = {
   me: () => fallback(()=>client.get('/auth/me'), demoUser),
   language: (preferred_language) => mutate(()=>client.put('/auth/language',{preferred_language}), 'Unable to save your language preference.'),
   dashboard: () => fallback(()=>client.get('/dashboard'), {empty:false,farmer:demoUser.name,farm:demoFarm,field:{...demoField,soil_moisture:38},weather:demoWeather,ndvi:{current:.67,previous:.69,trend:-.02,label:'Healthy vegetation',status:'good',message:'Continue monitoring alongside field observations.'},today_advisory:demoWeather.irrigation_advisory,unread_notifications:2,data_mode:'demo'}),
-  farms: () => fallback(()=>client.get('/farms'), [demoFarm]),
-  farm: (id) => fallback(()=>client.get(`/farms/${id}`), demoFarm),
-  createFarm: (payload) => fallback(()=>client.post('/farms',payload), demoFarm),
-  fields: (farmId) => fallback(()=>client.get(`/fields/farm/${farmId}`), [demoField]),
-  field: (id) => fallback(()=>client.get(`/fields/${id}`), demoField),
-  createField: (payload) => fallback(()=>client.post('/fields',payload), demoField),
+  farms: () => fallback(()=>client.get('/farms'), ()=>demoFarms),
+  farm: (id) => fallback(()=>client.get(`/farms/${id}`), ()=>demoFarms.find(f => f.id === id) || demoFarm),
+  createFarm: (payload) => fallback(()=>client.post('/farms',payload), ()=>{
+    const newFarm = {...demoFarm, ...payload, id: Date.now()}
+    demoFarms.push(newFarm)
+    return newFarm
+  }),
+  fields: (farmId) => fallback(()=>client.get(`/fields/farm/${farmId}`), ()=>demoFields.filter(f => f.farm_id === farmId)),
+  field: (id) => fallback(()=>client.get(`/fields/${id}`), ()=>demoFields.find(f => f.id === id) || demoField),
+  createField: (payload) => fallback(()=>client.post('/fields',payload), ()=>{
+    const newField = {...demoField, ...payload, id: Date.now()}
+    demoFields.push(newField)
+    return newField
+  }),
   updateField: (id,payload) => fallback(()=>client.put(`/fields/${id}`,payload), demoField),
-  recommendations: (field_id) => fallback(()=>client.post('/crops/recommend',{field_id,season:'Kharif'}), {field_id,area_acres:demoField.area,weather:demoWeather,recommendations:demoRecommendations,data_mode:'demo'}),
+  recommendations: (field_id) => fallback(()=>client.post('/crops/recommend',{field_id,season:'Kharif'}), ()=>{
+    const field = demoFields.find(f => f.id === field_id) || demoField
+    return {
+      field_id,
+      area_acres: field.area,
+      weather: demoWeather,
+      recommendations: demoRecommendations,
+      data_mode:'demo',
+      field_name: field.name,
+      current_crop: field.current_crop
+    }
+  }),
   weather: (fieldId) => fallback(()=>client.get(`/weather/${fieldId}`), demoWeather),
   ndvi: (fieldId) => fallback(()=>client.get(`/ndvi/${fieldId}`), {...demoHistory.at(-1),previous_ndvi:.69,trend:-.02,interpretation:{label:'Healthy vegetation',status:'good',message:'Continue monitoring alongside field observations.',disclaimer:'Vegetation condition indicator — not a confirmed crop diagnosis.'}}),
   ndviHistory: (fieldId) => fallback(()=>client.get(`/ndvi/${fieldId}/history`), {field_id:fieldId,records:demoHistory,source:'Mock Sentinel-2 series in demo mode'}),
